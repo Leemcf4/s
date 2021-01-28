@@ -1,0 +1,114 @@
+import { Request, Response, Router } from "express"
+import { validate, isEmpty } from "class-validator"
+import User from "../entities/User"
+import bcrypt from "bcrypt"
+import jwt from "jsonwebtoken"
+import cookie from "cookie"
+
+import auth from "../middleware/auth"
+import user from "../middleware/user"
+
+const mapErrors = (errors: Object[]) => {
+  return errors.reduce((prev: any, err: any) => {
+    prev[err.property] = Object.entries(err.constraints)[0][1]
+    return prev
+  }, {})
+}
+
+const register = async (req: Request, res: Response) => {
+  const { email, username, password } = req.body
+
+  try {
+    //Validate data here
+    let errors: any = {}
+    const emailUser = await User.findOne({ email })
+    const usernameUser = await User.findOne({ username })
+
+    if (emailUser) errors.email = "Email is already registered"
+    if (usernameUser) errors.username = "Username is already registered"
+    if (Object.keys(errors).length > 0) {
+      return res.status(400).json(errors)
+    }
+    //Create the user
+    const user = new User({ email, username, password })
+
+    errors = await validate(user)
+    if (errors.length > 0) {
+      return res.status(400).json(mapErrors(errors))
+    }
+
+    await user.save()
+
+    //Return the user
+    return res.json(user)
+  } catch (err) {
+    console.log(err)
+    return res.status(500).json(err)
+  }
+}
+
+const login = async (req: Request, res: Response) => {
+  const { username, password } = req.body
+
+  try {
+    let errors: any = {}
+    if (isEmpty(username)) errors.username = "Username must not be blank"
+    if (isEmpty(password)) errors.password = "Password must not be blank"
+    if (Object.keys(errors).length > 0) {
+      return res.status(400).json(errors)
+    }
+
+    const user = await User.findOne({ username })
+
+    if (!user) return res.status(404).json({ username: "User not found" })
+
+    const passwordMatches = await bcrypt.compare(password, user.password)
+    if (!passwordMatches) {
+      return res.status(401).json({ password: "Password is incorrect" })
+    }
+
+    const token = jwt.sign({ username }, process.env.JWT_SECRET!)
+
+    res.set(
+      "Set-Cookie",
+      cookie.serialize("token", token, {
+        httpOnly: true, //cookie can't be used by javascript
+        // secure: process.env.NODE_ENV === "production", //only use with https when true
+        sameSite: "strict", //cookie can only come from our domain
+        maxAge: 3600,
+        path: "/", //where is cookie valid
+      })
+    )
+    return res.json(user)
+  } catch (err) {
+    console.log(err)
+    return res.json({ error: "Something went wrong" })
+  }
+}
+
+const me = async (_: Request, res: Response) => {
+  return res.json(res.locals.user)
+}
+
+const logout = (_: Request, res: Response) => {
+  res.set(
+    "Set-Cookie",
+    cookie.serialize("token", "", {
+      httpOnly: true, //cookie can't be used by javascript
+      // secure: process.env.NODE_ENV === "production", //only use with https when true
+      sameSite: "strict", //cookie can only come from our domain
+      expires: new Date(0), //expires immediately
+      path: "/", //where is cookie valid
+    })
+  )
+
+  return res.status(200).json({ success: true })
+}
+
+const router = Router()
+router.post("/register", register)
+router.post("/login", login)
+router.get("/me", user, auth, me)
+router.get("/logout", user, auth, logout)
+
+export default router
