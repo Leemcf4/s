@@ -1,7 +1,5 @@
-const autoprefixer = require("autoprefixer")
-
 module.exports = {
-  purge: ["./src/**/*.tsx"],
+  purge: ["./**/*.tsx"],
   darkMode: false, // or 'media' or 'class'
   theme: {
     fontFamily: {

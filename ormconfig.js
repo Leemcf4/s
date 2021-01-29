@@ -12,7 +12,6 @@ module.exports = {
   entities: [rootDir + "/entities/**/*{.ts,.js}"],
   migrations: [rootDir + "/migrations/**/*{.ts,.js}"],
   subscribers: [rootDir + "/subscribers/**/*{.ts,.js}"],
-  seeds: [rootDir + "/seeds/**/*{.ts,.js}"],
   cli: {
     entitiesDir: rootDir + "/entities",
     migrationsDir: rootDir + "/migrations",

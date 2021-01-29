@@ -28,5 +28,5 @@
     "resolveJsonModule": true
   },
   "include": ["src/**/*"],
-  "exclude": ["node_modules", "client"]
+  "exclude": ["node_modules", "frontend"]
 }
